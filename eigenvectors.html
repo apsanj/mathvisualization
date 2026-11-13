@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eigenvalues and Eigenvectors: Interactive Demo</title>
+<style>
+  :root{
+    --bg:#fbfbf8; --panel:#ffffff; --ink:#1d2330; --muted:#5b6475; --line:#d9dce3;
+    --accent:#0072B2; --accent2:#D55E00; --accent3:#009E73; --accent4:#CC79A7;
+    --fs:17px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:var(--fs)/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  body.projector{--fs:22px;--bg:#ffffff;--muted:#2c3340}
+  header{padding:18px 24px 6px;max-width:1200px;margin:auto;display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+  header h1{margin:0;font-size:1.6em;line-height:1.2}
+  header p.lead{margin:6px 0 0;color:var(--muted);max-width:70ch}
+  button{font:inherit;font-size:.9em;padding:6px 14px;border:1.5px solid var(--accent);background:#fff;color:var(--accent);border-radius:8px;cursor:pointer}
+  button:hover{background:var(--accent);color:#fff}
+  button.primary{background:var(--accent);color:#fff}
+  .stage{max-width:1200px;margin:10px auto;padding:0 24px;display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px}
+  @media (max-width:860px){.stage{grid-template-columns:1fr}}
+  .plotbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;position:relative}
+  canvas{width:100%;height:min(62vh,560px);display:block;touch-action:none}
+  .controls{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+  .ctrl label{display:flex;justify-content:space-between;font-weight:600;font-size:.92em}
+  .ctrl output{font-variant-numeric:tabular-nums;color:var(--accent)}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  select{font:inherit;font-size:.9em;padding:4px;width:100%}
+  .readout{background:#f3f6fa;border-radius:10px;padding:10px 12px;font-variant-numeric:tabular-nums;font-size:.95em}
+  .readout b{color:var(--accent2)}
+  .caption{min-height:3em;background:#fff8e6;border-left:4px solid #E69F00;padding:8px 12px;border-radius:6px;font-size:.95em}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.88em;margin:6px 4px 0}
+  .legend span::before{content:"";display:inline-block;width:18px;height:4px;margin-right:6px;vertical-align:middle;background:var(--c)}
+  .notes{max-width:1200px;margin:8px auto 40px;padding:0 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px}
+  .notes section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 18px 12px}
+  .notes h2{font-size:1.15em;margin:12px 0 6px}
+  .formula{font-family:"Cambria Math","STIX Two Math","Times New Roman",serif;font-size:1.15em;background:#f6f7fb;padding:8px 12px;border-radius:8px;overflow-x:auto;white-space:nowrap}
+  details{margin:6px 0}
+  summary{cursor:pointer;font-weight:600}
+  table{border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.9em}
+  td,th{border:1px solid var(--line);padding:3px 8px;text-align:right}
+
+  .banner{position:absolute;top:16px;left:50%;transform:translateX(-50%);max-width:92%;text-align:center;background:rgba(255,255,255,.92);border:1.5px solid var(--line);border-radius:10px;padding:5px 12px;font-size:.95em;color:var(--muted);pointer-events:none}
+  .banner.on{border-color:#009E73;color:#00694d;background:#e8f7f1;font-weight:600}
+  .banner b{color:#00694d}
+  .matgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;background:#f6f7fb;border-radius:10px;padding:6px 10px}
+  .chk{font-size:.9em;display:flex;gap:6px;align-items:center;cursor:pointer}
+  .chk input{width:18px;height:18px}
+  .small{font-size:.85em;color:var(--muted)}
+  .readout hr{border:0;border-top:1px solid var(--line);margin:6px 0}
+  .readout .muted{color:var(--muted);font-size:.9em}
+  .readout .ok{color:#00694d}
+  .sechead{max-width:1200px;margin:26px auto 0;padding:0 24px;font-size:1.35em}
+  .secintro{max-width:1200px;margin:4px auto 0;padding:0 24px;color:var(--muted)}
+  .secintro{max-width:min(1200px,100%)}
+  .twin{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:700px){.twin{grid-template-columns:1fr}}
+  canvas.small{height:min(44vh,400px)}
+  @media (max-width:860px){canvas{height:min(56vh,480px)} canvas.small{height:min(40vh,340px)}}
+  @media (max-width:600px){.banner{font-size:.78em;top:10px;padding:3px 8px;max-width:80%}}
+  button:disabled{opacity:.45;cursor:default}
+  button:disabled:hover{background:#fff;color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Eigenvectors: the directions a matrix doesn't turn</h1>
+    <p class="lead">A matrix A moves almost every vector to a new direction. A few special vectors only get stretched, shrunk or flipped and stay on their own line. Those are the eigenvectors, and the stretch factor is the eigenvalue λ.</p>
+  </div>
+  <button id="projBtn" title="Larger text and thicker lines for classroom projection">Projector mode</button>
+</header>
+
+<div class="stage">
+  <div class="plotbox">
+    <canvas id="cv"></canvas>
+    <div class="legend">
+      <span style="--c:#0072B2">v (drag the blue tip, or tap anywhere)</span>
+      <span style="--c:#D55E00">Av</span>
+      <span style="--c:#009E73">eigen-lines</span>
+    </div>
+    <div id="banner" class="banner"></div>
+  </div>
+  <div class="controls">
+    <div class="ctrl">
+      <label for="preset">Choose a matrix A</label>
+      <select id="preset">
+        <option value="2,1,1,2">Symmetric [2 1; 1 2] (worked example)</option>
+        <option value="1,2,2,1">[1 2; 2 1] (one negative λ)</option>
+        <option value="3,1,0,2">Upper triangular [3 1; 0 2]</option>
+        <option value="1,1,0,1">Shear [1 1; 0 1]</option>
+        <option value="0,-1,1,0">Rotation by 90° [0 −1; 1 0]</option>
+        <option value="1,0,0,-1">Reflection in x-axis [1 0; 0 −1]</option>
+        <option value="2,0,0,2">Uniform scaling [2 0; 0 2]</option>
+        <option value="1,2,2,4">Singular [1 2; 2 4] (det = 0)</option>
+        <option value="custom">Custom (use sliders)</option>
+      </select>
+    </div>
+    <div class="matgrid">
+      <div class="ctrl"><label for="ma">a <output for="ma"></output></label><input type="range" id="ma" min="-3" max="3" step="0.5" value="2"></div>
+      <div class="ctrl"><label for="mb">b <output for="mb"></output></label><input type="range" id="mb" min="-3" max="3" step="0.5" value="1"></div>
+      <div class="ctrl"><label for="mc">c <output for="mc"></output></label><input type="range" id="mc" min="-3" max="3" step="0.5" value="1"></div>
+      <div class="ctrl"><label for="md">d <output for="md"></output></label><input type="range" id="md" min="-3" max="3" step="0.5" value="2"></div>
+    </div>
+    <div class="row">
+      <button id="sweep">▶ Sweep v around</button>
+      <label class="small">speed <input type="range" id="speed" min="0.2" max="2" step="0.1" value="0.6" style="width:80px;height:20px;vertical-align:middle"></label>
+    </div>
+    <div class="row">
+      <label class="chk"><input type="checkbox" id="showEig"> Show eigen-lines</label>
+      <label class="chk"><input type="checkbox" id="showMany"> Show 16 vectors at once</label>
+    </div>
+    <div class="row"><button id="applyA" title="Replace v by Av (rescaled). Repeat and watch v swing towards the eigenvector with the largest |λ|.">v ← Av (repeat)</button></div>
+    <div class="readout" id="readout"></div>
+    <div class="row">
+      <button id="prev">◀ Step</button><button id="next" class="primary">Next step ▶</button><button id="reset">Reset</button>
+    </div>
+    <div class="caption" id="caption"></div>
+  </div>
+</div>
+
+<h2 class="sechead">Why do we solve det(A − λI) = 0?</h2>
+<p class="secintro">If Av = λv then (A − λI)v = 0. A non-zero v can be sent to 0 only if the matrix A − λI <em>squashes the whole plane onto a line</em>, i.e. its area-scaling factor det(A − λI) is 0. Slide λ and watch the unit square under A − λI. It flattens exactly at the eigenvalues, and the green direction is the one that gets crushed to zero.</p>
+<div class="stage">
+  <div class="plotbox">
+    <div class="twin">
+      <div><canvas id="cv2" class="small"></canvas><div class="legend"><span style="--c:#56B4E9">unit square</span><span style="--c:#CC79A7">its image under A − λI</span><span style="--c:#009E73">eigenvector (when λ is an eigenvalue)</span></div></div>
+      <div><canvas id="cv3" class="small"></canvas><div class="legend"><span style="--c:#0072B2">p(λ) = det(A − λI)</span><span style="--c:#CC79A7">current λ</span></div></div>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="ctrl">
+      <label for="lam">λ <output id="lamOut"></output></label>
+      <input type="range" id="lam" min="-3" max="7" step="0.01" value="0">
+    </div>
+    <div class="row"><button id="jump1">Jump to λ₁</button><button id="jump2">Jump to λ₂</button></div>
+    <div class="readout" id="readout2"></div>
+  </div>
+</div>
+
+<div class="notes">
+  <section><h2>The maths</h2>
+    <p>A non-zero vector X is an <b>eigenvector</b> of a square matrix A if</p>
+    <div class="formula">AX = λX,&nbsp;&nbsp; X ≠ 0</div>
+    <p>for some scalar λ, the <b>eigenvalue</b>. Rearranging: (A − λI)X = 0. This homogeneous system has a non-trivial solution only when A − λI is singular, which gives the <b>characteristic equation</b></p>
+    <div class="formula">|A − λI| = 0</div>
+    <p>For a 2×2 matrix A = [a b; c d] it becomes</p>
+    <div class="formula">λ² − (a + d)λ + (ad − bc) = 0</div>
+    <p>i.e. λ² − (trace A)λ + |A| = 0. So λ₁ + λ₂ = trace A and λ₁λ₂ = |A|, which is a quick check in exams. For each λ, solve (A − λI)X = 0 for X.</p>
+    <p><b>Where it's used:</b> natural frequencies and mode shapes of vibrating beams and buildings, principal stresses in strength of materials, stability of control systems, and Google's PageRank.</p>
+  </section>
+  <section><h2>Worked example</h2>
+    <p>Find the eigenvalues and eigenvectors of A = [2 1; 1 2].</p>
+    <p><b>1. Characteristic equation.</b> |A − λI| = (2 − λ)² − 1 = λ² − 4λ + 3 = 0.</p>
+    <p><b>2. Eigenvalues.</b> (λ − 3)(λ − 1) = 0, so λ₁ = 3, λ₂ = 1. Check: 3 + 1 = 4 = trace, 3 × 1 = 3 = |A|.</p>
+    <p><b>3. λ = 3.</b> (A − 3I)X = 0 gives −x + y = 0, so y = x. X₁ = k(1, 1).</p>
+    <p><b>4. λ = 1.</b> (A − I)X = 0 gives x + y = 0, so y = −x. X₂ = k(1, −1).</p>
+    <p><b>5. Picture.</b> Any vector on the line y = x is stretched 3 times. Any vector on y = −x is unchanged. Every other vector gets turned.</p>
+    <p><button id="loadEx">Load this example</button> (then drag v onto y = x and y = −x)</p>
+  </section>
+  <section><h2>Try this</h2>
+    <details><summary>1. In the worked example, put v on y = x and drag it longer. Does λ change?</summary><p>No. Av = 3v for every vector on that line. An eigenvector is really a <em>direction</em>. That's why textbook answers say k(1, 1): any non-zero multiple works.</p></details>
+    <details><summary>2. Load [1 2; 2 1]. One eigenvector has Av pointing the <em>opposite</em> way to v. Is it still an eigenvector?</summary><p>Yes. On the line y = −x, Av = −1·v. It stays on the same line, just flipped, so λ = −1. Negative eigenvalues mean "flip and scale".</p></details>
+    <details><summary>3. Load the 90° rotation and sweep v all the way round. Does Av ever line up with v?</summary><p>Never. Every vector is turned by 90°, so no real direction survives. The characteristic equation λ² + 1 = 0 gives λ = ±i. Complex eigenvalues signal rotation, not "no answer".</p></details>
+    <details><summary>4. Load the shear [1 1; 0 1]. How many eigen-lines are there?</summary><p>Only one, the x-axis. λ = 1 is a repeated root but gives only one independent eigenvector, so a repeated eigenvalue does not guarantee two eigenvector directions.</p></details>
+    <details><summary>5. Make the matrix symmetric (b = c) with any values. What angle do the two eigen-lines make?</summary><p>Always 90°. Real symmetric matrices have real eigenvalues and orthogonal eigenvectors. This is why principal stress directions are perpendicular.</p></details>
+    <details><summary>6. Start v anywhere off the eigen-lines and keep pressing "v ← Av". Where does v end up?</summary><p>It swings onto the eigen-line with the largest |λ| (for [2 1; 1 2], the line y = x). Each press multiplies the λ = 3 part by 3 and the λ = 1 part by 1, so the first wins. This is the power method for finding the dominant eigenvalue.</p></details>
+  </section>
+  <section><h2>Common mistakes</h2>
+    <ul>
+      <li>Writing |A − λ| = 0. You subtract λ only on the diagonal: A − λI.</li>
+      <li>Thinking the eigenvector is unique. Any non-zero multiple k·X is also an eigenvector. X = 0 is never an eigenvector, even though A·0 = λ·0.</li>
+      <li>Expecting Av to point the same way as v. "Same line" is enough: λ can be negative (Av flipped) or zero (Av = 0).</li>
+      <li>Assuming every 2×2 matrix has two real eigenvector directions. Rotations have none and shears have only one.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+/* ===================== helpers (keep) ===================== */
+const MV = {
+  colors:{blue:'#0072B2',orange:'#D55E00',green:'#009E73',pink:'#CC79A7',yellow:'#E69F00',sky:'#56B4E9',black:'#1d2330',grey:'#9aa1ad'},
+  lineScale(){ return document.body.classList.contains('projector') ? 1.6 : 1; },
+  fmt(x,d=3){
+    if(!isFinite(x)) return x>0?'∞':(x<0?'−∞':'undefined');
+    if(x===0) return '0';
+    const a=Math.abs(x);
+    if(a<1e-3||a>=1e6){const e=Math.floor(Math.log10(a));const m=x/10**e;
+      const sup=String(e).replace(/-/g,'⁻').replace(/\d/g,c=>'⁰¹²³⁴⁵⁶⁷⁸⁹'[c]);
+      return m.toFixed(d>2?2:d).replace('-','−')+'×10'+sup;}
+    return (+x.toFixed(d)).toString().replace('-','−');
+  },
+  slider(id,onInput){
+    const el=document.getElementById(id), out=document.querySelector(`output[for="${id}"]`);
+    const show=()=>{ if(out) out.textContent=MV.fmt(+el.value,3); };
+    el.addEventListener('input',()=>{show();onInput&&onInput(+el.value);});
+    show(); return ()=>+el.value;
+  },
+  stepper(steps,render){
+    const s={index:0,
+      next(){ if(s.index<steps.length-1){s.index++;render(s.index,steps[s.index]);} },
+      prev(){ if(s.index>0){s.index--;render(s.index,steps[s.index]);} },
+      reset(){ s.index=0;render(0,steps[0]); }};
+    return s;
+  },
+  rng(seed=1){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed);
+    t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+};
+
+class Plot{
+  constructor(canvas,view){
+    this.c=canvas; this.ctx=canvas.getContext('2d'); this.v=Object.assign({xmin:-5,xmax:5,ymin:-5,ymax:5,equal:false},view);
+    this.onresize=null; this.resize();
+    new ResizeObserver(()=>{this.resize(); this.onresize&&this.onresize();}).observe(canvas);
+  }
+  resize(){ const r=this.c.getBoundingClientRect(), d=window.devicePixelRatio||1;
+    this.c.width=Math.max(1,r.width*d); this.c.height=Math.max(1,r.height*d); this.W=r.width; this.H=r.height;
+    this.ctx.setTransform(d,0,0,d,0,0); this._fit(); }
+  setView(v){ Object.assign(this.v,v); this._fit(); }
+  _fit(){ const v=this.v, pad=34; this.pad=pad;
+    let sx=(this.W-pad*1.4)/(v.xmax-v.xmin), sy=(this.H-pad*1.4)/(v.ymax-v.ymin);
+    if(v.equal){ const s=Math.min(sx,sy); sx=sy=s; }
+    this.sx=sx; this.sy=sy;
+    this.ox=(this.W-sx*(v.xmax-v.xmin))/2 - v.xmin*sx + pad*0.2;
+    this.oy=(this.H+sy*(v.ymax-v.ymin))/2 + v.ymin*sy - pad*0.2; }
+  toPx(x,y){ return [this.ox+x*this.sx, this.oy-y*this.sy]; }
+  toWorld(px,py){ return [(px-this.ox)/this.sx, (this.oy-py)/this.sy]; }
+  get xr(){ return [this.toWorld(0,0)[0], this.toWorld(this.W,0)[0]]; }
+  get yr(){ return [this.toWorld(0,this.H)[1], this.toWorld(0,0)[1]]; }
+  clear(){ const g=this.ctx; g.fillStyle='#fff'; g.fillRect(0,0,this.W,this.H); }
+  static niceStep(range){ const raw=range/8, p=10**Math.floor(Math.log10(raw)), m=raw/p;
+    return (m<1.5?1:m<3.5?2:m<7.5?5:10)*p; }
+  grid(stepX,stepY){
+    const g=this.ctx,[x0,x1]=this.xr,[y0,y1]=this.yr, ls=MV.lineScale();
+    stepX=stepX||Plot.niceStep(x1-x0); stepY=stepY||Plot.niceStep(y1-y0);
+    g.lineWidth=1; g.strokeStyle='#eceef2';
+    for(let x=Math.ceil(x0/stepX)*stepX;x<=x1;x+=stepX){const[p]=this.toPx(x,0);g.beginPath();g.moveTo(p,0);g.lineTo(p,this.H);g.stroke();}
+    for(let y=Math.ceil(y0/stepY)*stepY;y<=y1;y+=stepY){const[,q]=this.toPx(0,y);g.beginPath();g.moveTo(0,q);g.lineTo(this.W,q);g.stroke();}
+    g.strokeStyle='#5b6475'; g.lineWidth=1.5*ls;
+    const [ax,ay]=this.toPx(0,0), axX=Math.min(Math.max(ax,0),this.W), axY=Math.min(Math.max(ay,0),this.H);
+    g.beginPath(); g.moveTo(0,axY); g.lineTo(this.W,axY); g.moveTo(axX,0); g.lineTo(axX,this.H); g.stroke();
+    g.fillStyle='#5b6475'; g.font=`${12*ls}px system-ui`; g.textAlign='center'; g.textBaseline='top';
+    for(let x=Math.ceil(x0/stepX)*stepX;x<=x1;x+=stepX){ if(Math.abs(x)<stepX/2) continue; const[p]=this.toPx(x,0); g.fillText(MV.fmt(x,2),p,Math.min(axY+4,this.H-16*ls)); }
+    g.textAlign='right'; g.textBaseline='middle';
+    for(let y=Math.ceil(y0/stepY)*stepY;y<=y1;y+=stepY){ if(Math.abs(y)<stepY/2) continue; const[,q]=this.toPx(0,y); g.fillText(MV.fmt(y,2),Math.max(axX-4,30*ls),q); }
+  }
+  _style(o,def){ const g=this.ctx; g.strokeStyle=o.color||def||MV.colors.blue; g.lineWidth=(o.width||2.5)*MV.lineScale(); g.setLineDash(o.dash||[]); g.lineJoin='round'; g.lineCap='round'; }
+  curve(pts,o={}){ const g=this.ctx; this._style(o); g.beginPath(); let pen=false;
+    for(const [x,y] of pts){ if(!isFinite(y)||Math.abs(y)>1e6){pen=false;continue;} const[p,q]=this.toPx(x,y);
+      if(!pen){g.moveTo(p,q);pen=true;} else g.lineTo(p,q);} g.stroke(); g.setLineDash([]); }
+  fn(f,o={}){ const [x0,x1]=this.xr, n=Math.ceil(this.W*1.5), pts=[]; let prev=null;
+    for(let i=0;i<=n;i++){ const x=x0+(x1-x0)*i/n, y=f(x);
+      if(prev!==null && isFinite(y)&&isFinite(prev) && Math.abs(y-prev)*this.sy>this.H) pts.push([x,NaN]); // break at jumps/asymptotes
+      pts.push([x,y]); prev=y; }
+    this.curve(pts,o); }
+  param(F,t0,t1,n=400,o={}){ const pts=[]; for(let i=0;i<=n;i++) pts.push(F(t0+(t1-t0)*i/n)); this.curve(pts,o); }
+  segment(x0,y0,x1,y1,o={}){ this.curve([[x0,y0],[x1,y1]],o); }
+  point(x,y,o={}){ const g=this.ctx,[p,q]=this.toPx(x,y),r=(o.r||5)*MV.lineScale();
+    g.fillStyle=o.color||MV.colors.orange; g.beginPath(); g.arc(p,q,r,0,7); g.fill();
+    g.strokeStyle='#fff'; g.lineWidth=1.5; g.stroke(); if(o.label) this.text(x,y,o.label,{color:o.color,dx:r+4,dy:-r-4,align:'left'}); }
+  arrow(x0,y0,x1,y1,o={}){ const g=this.ctx,[a,b]=this.toPx(x0,y0),[c,d]=this.toPx(x1,y1), ls=MV.lineScale();
+    this._style(o); const L=Math.hypot(c-a,d-b); if(L<1) return; const ux=(c-a)/L,uy=(d-b)/L,h=Math.min((o.head||11)*ls,L*0.5);
+    g.beginPath(); g.moveTo(a,b); g.lineTo(c-ux*h*0.7,d-uy*h*0.7); g.stroke();
+    g.fillStyle=g.strokeStyle; g.beginPath(); g.moveTo(c,d); g.lineTo(c-ux*h-uy*h*0.45,d-uy*h+ux*h*0.45); g.lineTo(c-ux*h+uy*h*0.45,d-uy*h-ux*h*0.45); g.closePath(); g.fill();
+    if(o.label) this.text(x1,y1,o.label,{color:o.color,dx:6,dy:-8,align:'left'}); }
+  polygon(pts,o={}){ const g=this.ctx; g.beginPath(); pts.forEach(([x,y],i)=>{const[p,q]=this.toPx(x,y); i?g.lineTo(p,q):g.moveTo(p,q);}); g.closePath();
+    if(o.fill){g.fillStyle=o.fill; g.fill();} if(o.stroke){this._style({color:o.stroke,width:o.width||1.5}); g.stroke();} }
+  text(x,y,s,o={}){ const g=this.ctx,[p,q]=this.toPx(x,y); g.fillStyle=o.color||'#1d2330';
+    g.font=`${o.weight||600} ${(o.size||14)*MV.lineScale()}px system-ui`; g.textAlign=o.align||'center'; g.textBaseline='middle';
+    g.fillText(s,p+(o.dx||0),q+(o.dy||0)); }
+  draggable(getPts,onDrag,radius=14){
+    let idx=-1; const pick=e=>{ const r=this.c.getBoundingClientRect(); return [e.clientX-r.left,e.clientY-r.top]; };
+    this.c.addEventListener('pointerdown',e=>{ const [px,py]=pick(e); let best=radius*MV.lineScale();
+      getPts().forEach(([x,y],i)=>{ const[p,q]=this.toPx(x,y), d=Math.hypot(p-px,q-py); if(d<best){best=d;idx=i;} });
+      if(idx>=0){ this.c.setPointerCapture(e.pointerId); e.preventDefault(); } });
+    this.c.addEventListener('pointermove',e=>{ const [px,py]=pick(e);
+      if(idx>=0){ const [x,y]=this.toWorld(px,py); onDrag(idx,x,y); }
+      else { const near=getPts().some(([x,y])=>{const[p,q]=this.toPx(x,y);return Math.hypot(p-px,q-py)<radius*MV.lineScale();}); this.c.style.cursor=near?'grab':'default'; } });
+    const up=()=>{idx=-1;}; this.c.addEventListener('pointerup',up); this.c.addEventListener('pointercancel',up);
+  }
+}
+document.getElementById('projBtn').onclick=()=>{ document.body.classList.toggle('projector'); window.dispatchEvent(new Event('resize')); draw&&draw(); };
+
+/* ===================== Eigenvector demo ===================== */
+const C=MV.colors, $=id=>document.getElementById(id);
+const DEG=180/Math.PI;
+
+/* ---------- pure maths (no DOM) ---------- */
+const EigenMath={
+  mul(A,v){ return [A[0]*v[0]+A[1]*v[1], A[2]*v[0]+A[3]*v[1]]; },
+  // A = [a,b,c,d] meaning [[a,b],[c,d]]
+  eig(A){
+    const [a,b,c,d]=A, tr=a+d, det=a*d-b*c, disc=tr*tr-4*det, eps=1e-9;
+    const scalar=Math.abs(b)<eps&&Math.abs(c)<eps&&Math.abs(a-d)<eps;
+    if(disc<-eps) return {type:'complex',tr,det,disc,re:tr/2,im:Math.sqrt(-disc)/2,vals:[],vecs:[]};
+    const s=Math.sqrt(Math.max(disc,0));
+    if(s<1e-7){ const l=tr/2;
+      if(scalar) return {type:'scalar',tr,det,disc,vals:[l,l],vecs:[]};
+      return {type:'repeated',tr,det,disc,vals:[l,l],vecs:[EigenMath.vec(A,l)]}; }
+    const l1=(tr+s)/2,l2=(tr-s)/2;
+    return {type:'distinct',tr,det,disc,vals:[l1,l2],vecs:[EigenMath.vec(A,l1),EigenMath.vec(A,l2)]};
+  },
+  // a non-zero solution of (A - λI)X = 0, normalised so the larger component is 1
+  vec(A,l){
+    const [a,b,c,d]=A; const r1=[a-l,b], r2=[c,d-l];
+    const r=Math.hypot(...r1)>=Math.hypot(...r2)?r1:r2;
+    let v=[r[1],-r[0]];
+    if(Math.hypot(...v)<1e-12) v=[1,0];
+    const m=Math.abs(v[0])>=Math.abs(v[1])-1e-12?v[0]:v[1];
+    return [v[0]/m, v[1]/m];
+  },
+  charPoly(A,l){ const [a,b,c,d]=A; return (a-l)*(d-l)-b*c; },
+  sigmaMax(A){ const [a,b,c,d]=A, s=a*a+b*b+c*c+d*d, det=a*d-b*c;
+    return Math.sqrt((s+Math.sqrt(Math.max(s*s-4*det*det,0)))/2); },
+  // signed angle from v to Av in degrees
+  angle(v,w){ return Math.atan2(v[0]*w[1]-v[1]*w[0], v[0]*w[0]+v[1]*w[1])*DEG; }
+};
+if(typeof module!=='undefined') module.exports=EigenMath;
+
+/* ---------- state ---------- */
+const S={A:[2,1,1,2], v:[1.5,0.3], sweeping:false, ang:0, Lmax:1.6, R:4, snapped:false};
+const plot=new Plot($('cv'),{xmin:-4,xmax:4,ymin:-4,ymax:4,equal:true});
+const plot2=new Plot($('cv2'),{xmin:-3.8,xmax:3.8,ymin:-3.8,ymax:3.8,equal:true});
+const plot3=new Plot($('cv3'),{xmin:-3,xmax:7,ymin:-3,ymax:10});
+const sl={}; ['ma','mb','mc','md'].forEach((id,k)=>{ sl[id]=MV.slider(id,()=>{ S.A[k]=+$(id).value; $('preset').value='custom'; matrixChanged(); }); });
+const speed=()=>+$('speed').value;
+const f2=x=>MV.fmt(Math.abs(x)<5e-4?0:x,2);
+const vecStr=v=>`(${f2(v[0])}, ${f2(v[1])})`;
+const matStr=A=>`[${f2(A[0])} ${f2(A[1])}; ${f2(A[2])} ${f2(A[3])}]`;
+
+function setMatrix(A){ S.A=A.slice(); ['ma','mb','mc','md'].forEach((id,k)=>{ $(id).value=A[k]; document.querySelector(`output[for="${id}"]`).textContent=MV.fmt(A[k],3); }); matrixChanged(); }
+function matrixChanged(){
+  const sm=EigenMath.sigmaMax(S.A);
+  S.R=Math.max(3,1.05*Math.max(sm,1)*S.Lmax);
+  plot.setView({xmin:-S.R,xmax:S.R,ymin:-S.R,ymax:S.R});
+  const e=EigenMath.eig(S.A), c=Math.round(e.tr/2);
+  const lam=$('lam'); lam.min=c-5; lam.max=c+5;
+  if(e.vals.length) setLam(e.type==='distinct'?Math.min(...e.vals)-1.2:e.vals[0]-1.2); else setLam(e.tr/2);
+  plot3.setView({xmin:c-5,xmax:c+5});
+  $('caption').textContent='Exploring your own matrix. Press Reset to restart the guided tour of the worked example.';
+  draw();
+}
+$('preset').onchange=()=>{ const p=$('preset').value; if(p!=='custom') setMatrix(p.split(',').map(Number)); };
+
+/* ---------- v: drag, tap, snap ---------- */
+function setV(x,y,snap){
+  let L=Math.hypot(x,y); if(L<1e-6){x=0.3;y=0;L=0.3;}
+  const Lc=Math.min(Math.max(L,0.3),S.Lmax); x*=Lc/L; y*=Lc/L;
+  S.snapped=false;
+  if(snap){ const e=EigenMath.eig(S.A);
+    for(const u of e.vecs){ const n=Math.hypot(...u), ux=u[0]/n, uy=u[1]/n, dot=x*ux+y*uy;
+      const sin=Math.abs(x*uy-y*ux)/Lc;
+      if(sin<Math.sin(3/DEG)){ x=dot*ux; y=dot*uy; S.snapped=true; break; } } }
+  S.v=[x,y];
+}
+(function(){ const cv=$('cv'); let drag=false;
+  const at=e=>{ const r=cv.getBoundingClientRect(); return plot.toWorld(e.clientX-r.left,e.clientY-r.top); };
+  cv.addEventListener('pointerdown',e=>{ drag=true; stopSweep(); cv.setPointerCapture(e.pointerId); const [x,y]=at(e); setV(x,y,true); draw(); e.preventDefault(); });
+  cv.addEventListener('pointermove',e=>{ if(!drag){ const [x,y]=at(e),[p,q]=plot.toPx(...S.v),[P,Q]=plot.toPx(x,y); cv.style.cursor=Math.hypot(p-P,q-Q)<18?'grab':'crosshair'; return; }
+    const [x,y]=at(e); setV(x,y,true); draw(); });
+  const up=()=>{drag=false;}; cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',up);
+})();
+
+/* ---------- sweep animation ---------- */
+let last=0;
+function tick(t){
+  if(!S.sweeping) return;
+  const dt=last?Math.min((t-last)/1000,0.05):0; last=t;
+  const Av=EigenMath.mul(S.A,S.v), Lv=Math.hypot(...S.v), Lw=Math.hypot(...Av);
+  const sin=Lw<1e-9?0:Math.abs(S.v[0]*Av[1]-S.v[1]*Av[0])/(Lv*Lw);
+  S.ang+=dt*speed()*(0.12+0.88*Math.sqrt(sin));   // slows down near eigen-directions
+  const L=Math.min(2,S.Lmax); S.v=[L*Math.cos(S.ang),L*Math.sin(S.ang)]; S.snapped=false;
+  draw(); requestAnimationFrame(tick);
+}
+function startSweep(){ if(S.sweeping) return; S.sweeping=true; S.ang=Math.atan2(S.v[1],S.v[0]); last=0; $('sweep').textContent='❚❚ Pause'; requestAnimationFrame(tick); }
+function stopSweep(){ S.sweeping=false; $('sweep').textContent='▶ Sweep v around'; }
+$('sweep').onclick=()=>S.sweeping?stopSweep():startSweep();
+$('applyA').onclick=()=>{ stopSweep(); const w=EigenMath.mul(S.A,S.v), L=Math.hypot(...w);
+  if(L<1e-9){ $('banner').textContent='Av = 0, nothing to rescale. v is an eigenvector with λ = 0.'; return; }
+  const Lv=Math.hypot(...S.v); setV(w[0]*Lv/L,w[1]*Lv/L,false); draw(); };
+['showEig','showMany'].forEach(id=>$(id).onchange=()=>draw());
+
+/* ---------- step-by-step tour of the worked example ---------- */
+const EX=[2,1,1,2];
+const steps=[
+ 'Step 1 of 6: Blue is a vector v = (1.4, 0.3), orange is Av for A = [2 1; 1 2]. Here A turns v to a new direction (see the angle in the readout).',
+ 'Step 2 of 6: v now sweeps round. Watch the angle between v and Av. For almost every direction it is not 0°.',
+ 'Step 3 of 6: v = (1, 1) gives Av = (3, 3) = 3v. Same line, 3 times longer. v is an eigenvector with λ = 3.',
+ 'Step 4 of 6: v = (1, −1) gives Av = (1, −1) = 1·v. Not turned at all. Eigenvector with λ = 1.',
+ 'Step 5 of 6: Every eigenvector lies on one of these two green lines, the solution sets of (A − 3I)X = 0 and (A − I)X = 0.',
+ 'Step 6 of 6: Av = λv means (A − λI)v = 0, so A − λI crushes a non-zero v to 0. Scroll down to see why that forces det(A − λI) = 0.'];
+const stepper=MV.stepper(steps,(i,cap)=>{
+  if(S.A.join()!==EX.join()){ $('preset').value='2,1,1,2'; setMatrix(EX); }
+  $('caption').textContent=cap;
+  stopSweep();
+  if(i===0){ $('showEig').checked=false; $('showMany').checked=false; setV(1.4,0.3,false); }
+  if(i===1){ setV(1.4,0.3,false); startSweep(); }
+  if(i===2) setV(1,1,false);
+  if(i===3) setV(1,-1,false);
+  if(i>=4) $('showEig').checked=true;
+  if(i===4) setV(1,1,false);
+  if(i===5) setLam(3);
+  draw();
+});
+['next','prev','reset'].forEach(id=>$(id).onclick=()=>stepper[id]());
+$('loadEx').onclick=()=>{ $('preset').value='2,1,1,2'; setMatrix(EX); setV(1.4,0.3,false); $('cv').scrollIntoView({behavior:'smooth',block:'center'}); draw(); };
+
+/* ---------- drawing: main canvas ---------- */
+function eigenLine(p,u,R,col){ const n=Math.hypot(...u), k=3*R/n; p.segment(-u[0]*k,-u[1]*k,u[0]*k,u[1]*k,{color:col,width:2.5,dash:[10,7]}); }
+function drawMain(){
+  const A=S.A, e=EigenMath.eig(A), v=S.v, Av=EigenMath.mul(A,v), R=S.R;
+  plot.clear(); plot.grid(R>6?2:1,R>6?2:1);
+  const showEig=$('showEig').checked;
+  if(showEig){
+    if(e.type==='scalar') plot.text(0,-R*0.85,'A = λI: every line is an eigen-line',{color:C.green,size:15});
+    e.vecs.forEach((u,i)=>{ eigenLine(plot,u,R,C.green); const n=Math.hypot(...u), k=R*0.78/n;
+      plot.text(-u[0]*k,-u[1]*k,`λ${'₁₂'[i]} = ${f2(e.vals[i])}`,{color:C.green,size:15,dx:8,dy:-12,align:'left'}); });
+    if(e.type==='complex') plot.text(0,-R*0.85,'No real eigen-lines (complex λ)',{color:C.green,size:15});
+  }
+  if($('showMany').checked){
+    const L=Math.min(1.3,S.Lmax);
+    plot.param(t=>[L*Math.cos(t),L*Math.sin(t)],0,2*Math.PI,200,{color:'#9fc6e4',width:1.5});
+    plot.param(t=>EigenMath.mul(A,[L*Math.cos(t),L*Math.sin(t)]),0,2*Math.PI,200,{color:'#efb38c',width:1.5});
+    for(let k=0;k<16;k++){ const t=k*Math.PI/8, u=[L*Math.cos(t),L*Math.sin(t)], w=EigenMath.mul(A,u);
+      const Lw=Math.hypot(...w), par=Lw<1e-9||Math.abs(u[0]*w[1]-u[1]*w[0])/(L*Lw)<1e-6;
+      plot.arrow(0,0,w[0],w[1],{color:par?C.green:'#efb38c',width:par?2.5:1.5,head:8});
+      plot.arrow(0,0,u[0],u[1],{color:par?C.green:'#9fc6e4',width:par?2.5:1.5,head:8}); }
+  }
+  const Lv=Math.hypot(...v), Lw=Math.hypot(...Av);
+  const sin=Lw<1e-9?0:Math.abs(v[0]*Av[1]-v[1]*Av[0])/(Lv*Lw), aligned=sin<Math.sin(0.6/DEG);
+  // faint line through v so students can see whether Av lands on it
+  plot.segment(-v[0]*3*R/Lv,-v[1]*3*R/Lv,v[0]*3*R/Lv,v[1]*3*R/Lv,{color:aligned?C.green:'#c9d6e3',width:aligned?3:1.5,dash:aligned?[]:[4,6]});
+  plot.arrow(0,0,Av[0],Av[1],{color:C.orange,width:4});
+  plot.arrow(0,0,v[0],v[1],{color:C.blue,width:4});
+  if(!aligned&&Lw>1e-6){ // angle arc from v to Av
+    const a0=Math.atan2(v[1],v[0]), da=EigenMath.angle(v,Av)/DEG, r=Math.min(Lv,Lw,1)*0.45;
+    plot.param(t=>[r*Math.cos(a0+t*da),r*Math.sin(a0+t*da)],0,1,40,{color:C.grey,width:2}); }
+  const [pv,qv]=plot.toPx(...v), [pw,qw]=plot.toPx(...Av), g=plot.ctx, ls=MV.lineScale();
+  g.beginPath(); g.arc(pv,qv,9*ls,0,7); g.strokeStyle=C.blue; g.lineWidth=2; g.stroke();
+  const off=(Math.hypot(pv-pw,qv-qw)<30)?18:0;
+  plot.text(...v,'v',{color:C.blue,size:18,dx:12,dy:-14-off,align:'left',weight:700});
+  plot.text(...Av,'Av',{color:C.orange,size:18,dx:12,dy:14,align:'left',weight:700});
+
+  // banner + readout
+  const ratio=Lw<1e-9?0:Math.sign(v[0]*Av[0]+v[1]*Av[1])*Lw/Lv;
+  const ban=$('banner');
+  if(aligned){ ban.className='banner on';
+    ban.innerHTML=Lw<1e-9?`Av = 0 = 0·v &nbsp;⇒ eigenvector, <b>λ = 0</b>`:`Av = ${f2(ratio)}·v &nbsp;⇒ eigenvector, <b>λ = ${f2(ratio)}</b>${ratio<0?' (flipped)':''}`; }
+  else { ban.className='banner'; ban.textContent=`Av is turned ${f2(Math.abs(EigenMath.angle(v,Av)))}° away from v, so v is not an eigenvector`; }
+
+  let eigTxt;
+  if(e.type==='complex') eigTxt=`λ = ${f2(e.re)} ± ${f2(e.im)}i (complex)<br>No real eigenvectors: A turns every direction.`;
+  else if(e.type==='scalar') eigTxt=`λ₁ = λ₂ = <b>${f2(e.vals[0])}</b><br>A = λI: every non-zero vector is an eigenvector.`;
+  else if(e.type==='repeated') eigTxt=`λ₁ = λ₂ = <b>${f2(e.vals[0])}</b> (repeated)<br>Only one eigen-line: X = k${vecStr(e.vecs[0])}`;
+  else eigTxt=`λ₁ = <b>${f2(e.vals[0])}</b>, X₁ = k${vecStr(e.vecs[0])}<br>λ₂ = <b>${f2(e.vals[1])}</b>, X₂ = k${vecStr(e.vecs[1])}<br><span class="muted">check: λ₁+λ₂ = ${f2(e.vals[0]+e.vals[1])} = trace, λ₁λ₂ = ${f2(e.vals[0]*e.vals[1])} = |A|</span>`;
+  $('readout').innerHTML=
+   `A = ${matStr(A)}<br>`+
+   `<span style="color:${C.blue}">v = ${vecStr(v)}</span> → <span style="color:${C.orange}">Av = ${vecStr(Av)}</span><br>`+
+   `angle between v and Av: <b>${f2(Math.abs(EigenMath.angle(v,Av)))}°</b>${aligned?' ✔ same line':''}<hr>`+
+   `λ² − (${f2(e.tr)})λ + (${f2(e.det)}) = 0<br>${eigTxt}`;
+}
+
+/* ---------- drawing: det(A − λI) section ---------- */
+function setLam(l){ const el=$('lam'); el.value=l; S.lam=l; }
+function lamInput(){
+  let l=+$('lam').value; const e=EigenMath.eig(S.A);
+  for(const r of e.vals) if(Math.abs(l-r)<0.07) l=r;   // snap onto an eigenvalue
+  S.lam=l; draw();
+}
+$('lam').addEventListener('input',lamInput);
+$('jump1').onclick=()=>{ const e=EigenMath.eig(S.A); if(e.vals.length){ setLam(e.vals[0]); draw(); } };
+$('jump2').onclick=()=>{ const e=EigenMath.eig(S.A); if(e.vals.length){ setLam(e.vals[1]); draw(); } };
+function drawDet(){
+  const A=S.A, l=S.lam, e=EigenMath.eig(A), B=[A[0]-l,A[1],A[2],A[3]-l], det=EigenMath.charPoly(A,l);
+  const atEig=e.vals.some(r=>Math.abs(r-l)<1e-9);
+  $('lamOut').textContent=f2(l);
+  $('jump1').disabled=$('jump2').disabled=!e.vals.length;
+  $('jump1').textContent=e.vals.length?`Jump to λ₁ = ${f2(e.vals[0])}`:'Jump to λ₁';
+  $('jump2').textContent=e.vals.length?`Jump to λ₂ = ${f2(e.vals[1])}`:'Jump to λ₂';
+  // left: unit square under A − λI
+  plot2.clear(); plot2.grid(1,1);
+  plot2.polygon([[0,0],[1,0],[1,1],[0,1]],{fill:'rgba(86,180,233,.18)',stroke:C.sky,width:2});
+  const c1=[B[0],B[2]], c2=[B[1],B[3]];
+  plot2.polygon([[0,0],c1,[c1[0]+c2[0],c1[1]+c2[1]],c2],{fill:'rgba(204,121,167,.30)',stroke:C.pink,width:3});
+  if(atEig){
+    if(e.type==='scalar'){ plot2.point(0,0,{color:C.pink,r:7}); plot2.text(plot2.xr[0]+0.3,plot2.yr[0]+0.35,'A − λI = 0: everything collapses to the origin',{color:C.green,size:14,align:'left'}); }
+    else { const u=EigenMath.vec(A,l), n=Math.hypot(...u); eigenLine(plot2,u,3.5,C.green);
+      plot2.arrow(0,0,1.4*u[0]/n,1.4*u[1]/n,{color:C.green,width:3.5,label:'X → 0'});
+      plot2.text(plot2.xr[0]+0.3,plot2.yr[0]+0.35,'area = 0: square flattened onto a line',{color:C.green,size:14,align:'left'}); }
+  } else plot2.text(plot2.xr[0]+0.3,plot2.yr[0]+0.35,`area of image = |det| = ${f2(Math.abs(det))}`,{color:C.pink,size:14,align:'left'});
+  // right: characteristic polynomial
+  const pmin=-e.disc/4, ymin=Math.min(pmin-1.5,-2), ymax=Math.max(pmin+12,5);
+  plot3.setView({ymin,ymax});
+  plot3.clear(); plot3.grid();
+  plot3.fn(x=>EigenMath.charPoly(A,x),{color:C.blue,width:3});
+  e.vals.forEach((r,i)=>plot3.point(r,0,{color:C.green,r:6,label:`λ${'₁₂'[i]}`}));
+  plot3.segment(l,0,l,det,{color:C.pink,width:2,dash:[5,5]});
+  plot3.point(l,det,{color:C.pink,r:7});
+  plot3.text(plot3.xr[0],ymax,'  p(λ)',{align:'left',dy:12,color:C.blue});
+  // readout
+  let msg;
+  if(atEig) msg=e.type==='scalar'?`<b class="ok">det = 0.</b> A − λI is the zero matrix, so every X solves (A − λI)X = 0.`
+    :`<b class="ok">det = 0, so λ = ${f2(l)} is an eigenvalue.</b> (A − λI)X = 0 has the non-zero solution X = k${vecStr(EigenMath.vec(A,l))}.`;
+  else if(e.type==='complex') msg=`det ≠ 0. p(λ) never reaches 0 for real λ, so this matrix has no real eigenvalues.`;
+  else msg=`det ≠ 0. A − λI only squashes the zero vector to 0, so λ = ${f2(l)} is not an eigenvalue.`;
+  $('readout2').innerHTML=`A − λI = ${matStr(B)}<br>det(A − λI) = (${f2(B[0])})(${f2(B[3])}) − (${f2(A[1])})(${f2(A[2])}) = <b>${f2(det)}</b><hr>${msg}`;
+}
+
+function draw(){ drawMain(); drawDet(); }
+plot.onresize=plot2.onresize=plot3.onresize=draw;
+setMatrix(EX); stepper.reset();
+</script>
+</body>
+</html>
